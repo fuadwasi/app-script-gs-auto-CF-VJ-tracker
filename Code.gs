@@ -1,3 +1,4 @@
+// **************************** New Script By Fuad ********************************* //
 var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 var CFhandleRow = 6;
 var firstUserColumn = 7;
@@ -28,7 +29,7 @@ function getSolveCount(url){
 }
 
 
-// Codeforces currentChosenUser
+// Codeforces data update for a contest
 
 function currentChosenUser (){
   var col = currentChosenCellColumn()/2*2;
@@ -86,7 +87,7 @@ function currentChosenUser (){
   Browser.msgBox('Finished Running Script For User: '+ userName + "\\nTotal mismatch: " + totalMismatch);
 }
 
-// Codeforces currentChosenContest
+// Codeforces data update for a user
 
 function currentChosenContest(){
   var col = currentChosenCellColumn();
@@ -130,7 +131,7 @@ function currentChosenContest(){
 
 
 
-// vjudge vjudgeChosenContest
+// vjudge data update for a contest
 
 function vjudgeChosenContest(){
   var col = currentChosenCellColumn();
@@ -164,17 +165,19 @@ function vjudgeChosenContest(){
   // Logger.log("fuadwasi user data in index: "+ userColumnIndexMap["fuadwasi"])
 
    var vjContestData = vjudgeDataProcess(contestId)
+   //Browser.msgBox(vjContestData);
    var handleListLen=handleList.length
    for(var i=0;i<handleListLen;i++)
    {
      if(vjContestData[handleList[i]])
      {
-       sheet.getRange(row, userColumnIndexMap[handleList[i]]).setValue(vjContestData[handleList[i]].contestSolve);
+       
+       sheet.getRange(row, userColumnIndexMap[handleList[i]]).setValue(vjContestData[handleList[i]].isPresent?vjContestData[handleList[i]].contestSolve:'A');
+       if(vjContestData[handleList[i]].upSolve)
        sheet.getRange(row, userColumnIndexMap[handleList[i]]+1).setValue(vjContestData[handleList[i]].upSolve);
      }
      else{
        sheet.getRange(row, userColumnIndexMap[handleList[i]]).setValue('A');
-       sheet.getRange(row, userColumnIndexMap[handleList[i]]+1).setValue('0');
      }
    }
   Browser.msgBox('Finished Running Script For Contest: '+ contestName);
@@ -194,7 +197,8 @@ function vjudgeChosenContest(){
 
 function vjudgeDataProcess(contestId)
 {
-  //contestId = '424279'
+ // contestId = '424279'
+    //contestId = '424640'
   var responseData=getVjudgeData(contestId);
   var contestTitle = responseData.title;
   var time = parseInt(responseData.length) / 1000;
@@ -212,6 +216,7 @@ function vjudgeDataProcess(contestId)
           name: element[1][1],
           solveCount: 0,
           upSolveCount: 0,
+          isPresent: false,
           solves: problemIndexGenerate(),
         }
         participantsData[element[0]] = dist
@@ -226,8 +231,12 @@ function vjudgeDataProcess(contestId)
               participantsData[e[0]].upSolveCount += 1
             } else {
               participantsData[e[0]].solveCount += 1
+              participantsData[e[0]].isPresent=true
             }
           }
+        }
+        else{
+          if(e[3] < time)participantsData[e[0]].isPresent=true
         }
       });
       var data = {}
@@ -237,7 +246,8 @@ function vjudgeDataProcess(contestId)
           userid: e[0],
           userName:participantsData[e[0]].userName,
           contestSolve: participantsData[e[0]].solveCount,
-          upSolve: participantsData[e[0]].upSolveCount
+          upSolve: participantsData[e[0]].upSolveCount,
+          isPresent:participantsData[e[0]].isPresent
         }
         data[participantsData[e[0]].userName]=tmp
         //data.push(participantsData[e[0]])
@@ -249,9 +259,41 @@ function vjudgeDataProcess(contestId)
 
 
 function getVjudgeData(contestId){
-  //contestId = '424279'
+  //contestId = '424640'
+  var formData = {
+   'username': 'DIU_stdio_h',
+   'password': '123456789'
+ };
+ 
+ var options = {
+   'method' : 'post',
+   'payload' : formData,
+   'User-Agent' : 'PostmanRuntime/7.26.10',
+ };
+
+  
+  var start = new Date();
+  Logger.log('Before calling api: ' + start)
+ 
+  var response = UrlFetchApp.fetch('https://vjudge.net/user/login', options);
+
+  var headers = response.getAllHeaders();
+  var cookies = headers['Set-Cookie']; 
+  for (var i = 0; i < cookies.length; i++) {
+    cookies[i] = cookies[i].split( ';' )[0];
+  };
+
+ var options2 = {
+   'method' : 'get',
+   "headers": {
+      "Cookie": cookies.join(';')
+    },
+   'User-Agent' : 'PostmanRuntime/7.26.10'
+ };
+
   var apiUrl= 'https://vjudge.net/contest/rank/single/'+contestId
-  var response = UrlFetchApp.fetch(apiUrl);
+  var response = UrlFetchApp.fetch(apiUrl,options2);
+  //Logger.log(response)
   return JSON.parse(response);
   
 }
